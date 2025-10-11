@@ -23,6 +23,7 @@ LOCAL_FILE = "local_storage.json"
 URL = "https://www.target.com/"
 CONFIG_FILE = "config.json"
 CSV_PATH = "sku.csv"
+TOOL_NAME = "Bot1"
 
 # --- global vars ---
 driver_instance = None
@@ -89,7 +90,7 @@ cfg = read_config()
 CVE = cfg.get('CVE', '123')
 SPEND_LIMIT = cfg.get('SPEND_LIMIT', 120.00)
 BUY_LIMIT = cfg.get('BUY_LIMIT', 3)
-TOOL_NAME = cfg.get('NAME', 'First ')
+
 
 def get_price(driver):
     try:
