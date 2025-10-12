@@ -24,6 +24,7 @@ URL = "https://www.target.com/"
 CONFIG_FILE = "config.json"
 CSV_PATH = "sku.csv"
 TOOL_NAME = "Bot1"
+PASSWORD = "Hacktanha"
 
 # --- global vars ---
 driver_instance = None
@@ -152,9 +153,9 @@ def select_quantity(driver, quantity='1'):
 
 def main(input_func=input):
     global driver_instance, running
-    if not checkLincenc():
-        print('License check failed!')
-        return
+    # if not checkLincenc():
+    #     print('License check failed!')
+    #     return
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     profile_path = os.path.join(current_dir, "chrome_profile")
@@ -203,11 +204,14 @@ def main(input_func=input):
         time.sleep(2)
                 
         while True:
+                    driver_instance.refresh()
+                    print(f"[+] Refreshing page for SKU {sku}...")
                     try:
                         btn = driver_instance.find_element(By.XPATH, "//button[contains(text(),'Add to cart')]")
                         js_click(driver_instance, btn)
                         print(f"[+] Clicked Add to cart for SKU {sku}")
                     except:
+                        print(f"[!] Add to cart button not found for SKU {sku}, retrying...")
                         pass
                     try:
                         element = driver_instance.find_element(By.CSS_SELECTOR, 'button[data-test="custom-quantity-picker"]')
@@ -215,7 +219,7 @@ def main(input_func=input):
                             break
                     except:
                         pass
-                    time.sleep(0.5)
+                    time.sleep(1)
                     
                   
         print(f"[+] Added SKU {sku} (x{quantity}) to cart.")
@@ -223,6 +227,32 @@ def main(input_func=input):
         driver_instance.get('https://www.target.com/checkout')
         time.sleep(2)
         wait = WebDriverWait(driver_instance, 5)
+        while True:
+            try:
+                print("[+] On checkout page, Login page detected.")
+                passFiled = wait.until(EC.presence_of_element_located((By.ID, 'password')))
+            
+                # driver_instance.execute_script("""
+                # arguments[0].value = arguments[1];
+                # arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
+                # arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
+                # """, passFiled, PASSWORD)
+                passFiled.clear()
+                time.sleep(random.randint(2,3))
+                passFiled.send_keys(PASSWORD)
+                time.sleep(0.5)
+
+                btn = driver_instance.find_element(By.ID, 'login')
+                js_click(driver_instance, btn)
+                time.sleep(3)
+                skipbtn = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[normalize-space()='Skip']")))
+                js_click(driver_instance, skipbtn)
+                time.sleep(2)
+                
+            except:
+                break
+      
+            
         try:
             sncbtn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Save and continue')]")))
             js_click(driver_instance, sncbtn)
