@@ -26,6 +26,7 @@ CSV_PATH = "sku.csv"
 TOOL_NAME = "Bot1"
 PASSWORD = "Hacktanha"
 
+
 # --- global vars ---
 driver_instance = None
 running = False
@@ -207,11 +208,21 @@ def main(input_func=input):
                     driver_instance.refresh()
                     print(f"[+] Refreshing page for SKU {sku}...")
                     try:
-                        btn = driver_instance.find_element(By.XPATH, "//button[contains(text(),'Add to cart')]")
+                        button_text = None
+                        try:
+                            btn = driver_instance.find_element(By.XPATH, "//button[contains(text(),'Add to cart')]")
+                            button_text = 'Add to cart'
+                        except:
+                            btn = driver_instance.find_element(By.XPATH, "//button[text()='Preorder']")
+                            button_text = 'Preorder'
                         js_click(driver_instance, btn)
-                        print(f"[+] Clicked Add to cart for SKU {sku}")
+                        # print(f"[+] Clicked Add to cart for SKU {sku}")
+                        if button_text:
+                            print(f"[+] Clicked {button_text} for SKU {sku}")
                     except:
-                        print(f"[!] Add to cart button not found for SKU {sku}, retrying...")
+                        # print(f"[!] Add to cart button not found for SKU {sku}, retrying...")
+                        print(f"[!] Add to cart/Preorder button not found for SKU {sku}, retrying...")
+                        time.sleep(1)
                         pass
                     try:
                         element = driver_instance.find_element(By.CSS_SELECTOR, 'button[data-test="custom-quantity-picker"]')
