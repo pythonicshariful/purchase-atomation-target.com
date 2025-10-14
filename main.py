@@ -48,12 +48,37 @@ class RedirectText(io.StringIO):
 
 
 # ===== Core Bot Logic =====
-def checkLincenc():
-    url = 'https://github.com/pythonicshariful/phone-number-extractor'
-    try:
-        return requests.get(url).status_code == 200
-    except:
+
+def save_session(driver, profile_dir):
+    cookies_file = os.path.join(profile_dir, "cookies.json")
+    pickle_file = os.path.join(profile_dir, "session.pkl")
+
+    # Save cookies
+    with open(cookies_file, "w") as f:
+        json.dump(driver.get_cookies(), f)
+
+    # Save pickle (optional if you want redundancy)
+    with open(pickle_file, "wb") as f:
+        pickle.dump(driver.get_cookies(), f)
+
+    print("[+] Login session saved successfully.")
+
+
+def load_session(driver, profile_dir):
+    cookies_file = os.path.join(profile_dir, "cookies.json")
+    if not os.path.exists(cookies_file):
         return False
+
+    with open(cookies_file, "r") as f:
+        cookies = json.load(f)
+
+    for cookie in cookies:
+        try:
+            driver.add_cookie(cookie)
+        except Exception:
+            pass
+    print("[+] Cookies loaded.")
+    return True
 
 def read_config(path=CONFIG_FILE):
     """Read configuration from JSON file and return dict with defaults.
@@ -154,9 +179,6 @@ def select_quantity(driver, quantity='1'):
 
 def main(input_func=input):
     global driver_instance, running
-    # if not checkLincenc():
-    #     print('License check failed!')
-    #     return
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     profile_path = os.path.join(current_dir, "chrome_profile")
@@ -176,10 +198,19 @@ def main(input_func=input):
     driver_instance.get(URL)
     time.sleep(2)
 
-    if not is_logged_in(driver_instance):
-        input_func("Please log in manually, then press Enter here...")
+    if load_session(driver_instance, profile_path):
+        driver_instance.refresh()
+        time.sleep(2)
+        if not is_logged_in(driver_instance):
+            print("[!] Cookies expired. Manual login required.")
+            input_func("Please log in manually, then press Enter here...")
+            save_session(driver_instance, profile_path)
+        else:
+            print("[+] Logged in using saved session.")
     else:
-        print("Already logged in.")
+        print("[!] No saved session found.")
+        input_func("Please log in manually, then press Enter here...")
+        save_session(driver_instance, profile_path)
 
     cfg = read_config()
     BUY_LIMIT = cfg.get('BUY_LIMIT', 3)
