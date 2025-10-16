@@ -261,7 +261,8 @@ def main(input_func=input):
                             break
                     except:
                         pass
-                    time.sleep(1)
+                    # time.sleep(1)
+                    time.sleep(random.randint(3,5))
                     
                   
         print(f"[+] Added SKU {sku} (x{quantity}) to cart.")
