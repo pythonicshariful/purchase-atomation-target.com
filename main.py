@@ -214,25 +214,21 @@ def main(input_func=input):
 
     cfg = read_config()
     BUY_LIMIT = cfg.get('BUY_LIMIT', 3)
-    sku_data = load_skus()
-    if not sku_data:
-        print('[!] No SKUs found in sku.csv. Exiting.')
-        driver_instance.quit()
-        return
-
-    skus_to_process = sku_data[:BUY_LIMIT]
     total_bought = 0
     total_spent = 0.0
+
+    # Instead of reading from CSV, use the provided URL directly
+    skus_to_process = [{'url': 'https://www.target.com/p/pokemon-card-game-mega-high-class-pack-mega-dream-ex-pack-10-cards/-/A-1007918679#lnk=sametab', 'quantity': 1}]
 
     for item in skus_to_process:
         if not running:
             print("Stopped by user.")
             break
-        sku = item['sku']
+        product_url = item['url']
         quantity = item['quantity']
-        product_url = f"https://www.target.com/p/-/A-{sku}"
+        sku = '1007918679' # Extracted from the URL for logging purposes
         driver_instance.get(product_url)
-        print(f"Opened SKU {sku}")
+        print(f"Opened Product {product_url}")
         time.sleep(2)
                 
         while True:
@@ -304,24 +300,19 @@ def main(input_func=input):
             pass
                     
         try:
-            place_order = WebDriverWait(driver_instance, 5).until(EC.element_to_be_clickable((By.XPATH, "//button[text()='Place your order']")))
+            place_order = WebDriverWait(driver_instance, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-test='placeOrderButton']")))
             js_click(driver_instance, place_order)
-            print(f"[+] Order placed for SKU {sku}")
+            print(f"[+] Clicked Place order for SKU {sku}")
         except Exception:
             print(f"[!] Place order button not found for SKU {sku}; order may be incomplete.")
 
-        price = get_price(driver_instance)
-        total_spent += price
-        total_bought += 1
-    
-
-                # try CVV/confirm if needed
+        # try CVV/confirm if needed (slides open after Place Order)
         try:
             WebDriverWait(driver_instance, 3).until(EC.presence_of_element_located((By.ID, 'enter-cvv')))
             driver_instance.execute_script("""
                         const cvv = document.getElementById('enter-cvv');
                         if (cvv) {
-                            const lastValue = cvv.value;
+                            const lastValue = cvv.value || "";
                             cvv.value = arguments[0];
                             const event = new Event('input', { bubbles: true });
                             const tracker = cvv._valueTracker;
@@ -330,13 +321,17 @@ def main(input_func=input):
                         }
                     """, CVE)
             driver_instance.execute_script("""
-                        const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Confirm');
+                        const btn = document.querySelector('button[data-test="confirm-button"]');
                         if (btn) btn.click();
                     """)
-            print(f"[+] Confirmed order for SKU {sku}.")
+            print(f"[+] Confirmed CVV for SKU {sku}.")
         except Exception:
-                    # Not critical; continue
+            # Not critical; continue
             pass
+
+        price = get_price(driver_instance)
+        total_spent += price
+        total_bought += 1
 
     print(f"Done. Bought {total_bought} SKU(s), Spent ${total_spent:.2f}")
     input_func('Press Enter to close browser...')
