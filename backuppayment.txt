@@ -1,0 +1,483 @@
+// ==UserScript==
+// @name         P-Bandai SG Auto Cart & Checkout Bot
+// @namespace    http://tampermonkey.net/
+// @version      0.8
+// @description  Auto Add to Cart and Checkout for P-Bandai SG with GUI
+// @author       You
+// @match        https://p-bandai.com/sg/orderdetails*
+// @match        https://webservices.global-e.com/*
+// @match        https://secure-bandai.global-e.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=p-bandai.com
+// @grant        GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @run-at       document-end
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // -------------------------------------------------------------------------
+    // GUI AND LOGGING SETUP
+    // -------------------------------------------------------------------------
+    
+    // Default settings
+    let config = {
+        active: false,
+        cardNumber: '',
+        cardExpiry: '',
+        cardCvv: ''
+    };
+
+    // Load saved config using Tampermonkey storage (works across domains/iframes)
+    const savedConfig = GM_getValue('PBandaiBotConfig', null);
+    if (savedConfig) {
+        try {
+            config = Object.assign(config, JSON.parse(savedConfig));
+        } catch(e) { console.error('Failed to parse config', e); }
+    }
+
+    function saveConfig() {
+        GM_setValue('PBandaiBotConfig', JSON.stringify(config));
+    }
+
+    // Inject GUI styles using GM_addStyle to bypass CSP and ensure loading
+    GM_addStyle(`
+        #pbBotGui {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            width: 320px !important;
+            background: #fff !important;
+            border: 2px solid #333 !important;
+            border-radius: 8px !important;
+            z-index: 2147483647 !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+            font-family: Arial, sans-serif !important;
+            font-size: 13px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            color: #000 !important;
+        }
+        #pbBotGuiHeader {
+            background: #333 !important;
+            color: #fff !important;
+            padding: 8px !important;
+            border-top-left-radius: 6px !important;
+            border-top-right-radius: 6px !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            cursor: pointer !important;
+            display: flex !important;
+            justify-content: space-between !important;
+        }
+        #pbBotGuiContent {
+            padding: 10px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            max-height: 450px !important;
+            overflow-y: auto !important;
+            background: #fff !important;
+        }
+        .pb-row {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            color: #000 !important;
+        }
+        .pb-row input {
+            width: 140px !important;
+            padding: 4px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 4px !important;
+            color: #000 !important;
+        }
+        #pbBotConsole {
+            height: 120px !important;
+            background: #111 !important;
+            color: #0f0 !important;
+            overflow-y: auto !important;
+            font-family: monospace !important;
+            padding: 6px !important;
+            font-size: 11px !important;
+            margin-top: 10px !important;
+            border: 1px solid #000 !important;
+            border-radius: 4px !important;
+            text-align: left !important;
+        }
+        .pb-btn {
+            background: #d32f2f !important;
+            color: white !important;
+            border: none !important;
+            padding: 8px !important;
+            cursor: pointer !important;
+            border-radius: 4px !important;
+            font-weight: bold !important;
+            text-align: center !important;
+        }
+        .pb-btn.active {
+            background: #388e3c !important;
+        }
+        .pb-btn:hover {
+            opacity: 0.9 !important;
+        }
+    `);
+
+    function guiLog(msg) {
+        const time = new Date().toLocaleTimeString();
+        console.log(`[PB-Bot] ${msg}`);
+        
+        if (window !== window.top) {
+            // If in an iframe, send log to the top window
+            window.top.postMessage({ type: 'PBBOT_LOG', msg: msg }, '*');
+            return;
+        }
+
+        const consoleEl = document.getElementById('pbBotConsole');
+        if (consoleEl) {
+            const p = document.createElement('div');
+            p.textContent = `[${time}] ${msg}`;
+            consoleEl.appendChild(p);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+    }
+
+    if (window === window.top) {
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'PBBOT_LOG') {
+                guiLog(event.data.msg);
+            }
+        });
+    }
+
+    let guiVisible = true;
+
+    function initGUI() {
+        if (document.getElementById('pbBotGui')) return;
+
+        // Inject GUI HTML
+        const guiHTML = `
+            <div id="pbBotGuiHeader">
+                <span>P-Bandai Bot</span>
+                <span id="pbToggleGui">${guiVisible ? '[-]' : '[+]'}</span>
+            </div>
+            <div id="pbBotGuiContent" style="display: ${guiVisible ? 'flex' : 'none'} !important;">
+                <button id="pbBtnToggle" class="pb-btn ${config.active ? 'active' : ''}">${config.active ? 'BOT ACTIVE (Click to Stop)' : 'BOT STOPPED (Click to Start)'}</button>
+                
+                <div class="pb-row">
+                    <label>Card Number:</label>
+                    <input type="text" id="pbCard" value="${config.cardNumber}">
+                </div>
+                <div class="pb-row">
+                    <label>Expiry (MM/YY):</label>
+                    <input type="text" id="pbExp" value="${config.cardExpiry}">
+                </div>
+                <div class="pb-row">
+                    <label>CVV:</label>
+                    <input type="password" id="pbCvv" value="${config.cardCvv}">
+                </div>
+                <button id="pbBtnSave" class="pb-btn" style="background:#1976d2 !important;">Save Settings</button>
+                
+                <div id="pbBotConsole"></div>
+            </div>
+        `;
+        const guiContainer = document.createElement('div');
+        guiContainer.id = 'pbBotGui';
+        guiContainer.innerHTML = guiHTML;
+        
+        // Append to body if it exists, otherwise documentElement
+        if (document.body) {
+            document.body.appendChild(guiContainer);
+        } else {
+            document.documentElement.appendChild(guiContainer);
+        }
+
+        document.getElementById('pbBtnToggle').addEventListener('click', (e) => {
+            config.active = !config.active;
+            saveConfig();
+            e.target.className = `pb-btn ${config.active ? 'active' : ''}`;
+            e.target.textContent = config.active ? 'BOT ACTIVE (Click to Stop)' : 'BOT STOPPED (Click to Start)';
+            guiLog(config.active ? 'Bot Started' : 'Bot Stopped');
+        });
+
+        document.getElementById('pbBtnSave').addEventListener('click', () => {
+            config.cardNumber = document.getElementById('pbCard').value;
+            config.cardExpiry = document.getElementById('pbExp').value;
+            config.cardCvv = document.getElementById('pbCvv').value;
+            saveConfig();
+            guiLog('Settings saved!');
+        });
+
+        document.getElementById('pbToggleGui').addEventListener('click', (e) => {
+            guiVisible = !guiVisible;
+            const content = document.getElementById('pbBotGuiContent');
+            if (content) {
+                content.style.setProperty('display', guiVisible ? 'flex' : 'none', 'important');
+            }
+            e.target.textContent = guiVisible ? '[-]' : '[+]';
+        });
+        
+        guiLog("GUI Initialized");
+    }
+
+    if (window === window.top) {
+        if (document.body) {
+            initGUI();
+        } else {
+            document.addEventListener('DOMContentLoaded', initGUI);
+        }
+        
+        // Fallback: If site framework clears the DOM or hides the GUI, enforce persistence
+        setInterval(() => {
+            let gui = document.getElementById('pbBotGui');
+            if (!gui) {
+                initGUI();
+            } else {
+                // Ensure it's still attached to the current body
+                if (document.body && gui.parentElement !== document.body) {
+                    document.body.appendChild(gui);
+                }
+                // Force visibility
+                gui.style.setProperty('display', 'flex', 'important');
+                gui.style.setProperty('z-index', '2147483647', 'important');
+                gui.style.setProperty('visibility', 'visible', 'important');
+                gui.style.setProperty('opacity', '1', 'important');
+            }
+        }, 1000);
+    }
+
+
+
+    // -------------------------------------------------------------------------
+    // BOT LOGIC
+    // -------------------------------------------------------------------------
+
+    const path = window.location.pathname;
+
+
+
+    function nativeFill(el, value) {
+        if (!el) return false;
+        el.focus();
+        // Use native input value setter to bypass React/Vue controlled component caching
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+        if (nativeInputValueSetter && nativeInputValueSetter.set) {
+            nativeInputValueSetter.set.call(el, value);
+        } else {
+            el.value = value;
+        }
+        el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+        el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+        return true;
+    }
+
+    function nativeSelectFill(el, value) {
+        if (!el) return false;
+        const nativeSelectValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
+        if (nativeSelectValueSetter && nativeSelectValueSetter.set) {
+            nativeSelectValueSetter.set.call(el, value);
+        } else {
+            el.value = value;
+        }
+        el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+        el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        return true;
+    }
+
+    function handleOrderDetailsPage() {
+        guiLog('On Order Details page.');
+        
+        let scrolled = false;
+        let isGlobalE = window.location.hostname.includes('global-e.com');
+        let filled = { num: false, month: false, year: false, cvv: false };
+        
+        // Listen for the card filled signal from the secure child iframe
+        if (isGlobalE) {
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'PBBOT_CARD_FILLED') {
+                    guiLog('Received card filled signal. Proceeding to submit...');
+                    setTimeout(() => {
+                        const tnc = document.querySelector('#CheckoutData_TnCConsent0, input[name="CheckoutData.TnCConsent0"]');
+                        if (tnc && !tnc.checked) {
+                            tnc.click();
+                            guiLog('Clicked T&C Checkbox');
+                        }
+                        
+                        // Small delay before clicking pay to ensure T&C registers
+                        setTimeout(() => {
+                            const payBtn = document.querySelector('#btnPay');
+                            if (payBtn) {
+                                payBtn.click();
+                                guiLog('Clicked Pay and place order Button');
+                            }
+                        }, 800);
+                    }, 1000);
+                }
+            });
+        }
+        
+        const interval = setInterval(() => {
+            // Re-load config inside interval in case it was updated on the main page (useful for iframe sync)
+            const latestConfig = GM_getValue('PBandaiBotConfig', null);
+            if (latestConfig) {
+                try { config = Object.assign(config, JSON.parse(latestConfig)); } catch(e){}
+            }
+
+            // In the Global-e iframe there is no GUI, so config.active is always false.
+            // Only enforce active check on the main p-bandai.com page.
+            if (!isGlobalE && !config.active) return;
+            
+            const iframe = document.querySelector('iframe.Intrnl_CO_Container, iframe#Intrnl_CO_Container');
+            
+            if (iframe && !scrolled && !isGlobalE) {
+                guiLog('Found Global-e iframe, scrolling to it...');
+                iframe.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                scrolled = true;
+            }
+
+            if (iframe && !isGlobalE) {
+                return; // The script inside the iframe will handle it
+            }
+
+            // --- Running inside the Global-e iframe ---
+            const ccNum = document.querySelector('#cardNum, input[name="PaymentData.cardNum"]');
+            const expMonth = document.querySelector('#cardExpiryMonth');
+            const expYear = document.querySelector('#cardExpiryYear');
+            const cvv = document.querySelector('#cvdNumber, input[name="PaymentData.cvdNumber"]');
+
+            // Debug: log what we find
+            if (!ccNum) guiLog('[DBG] #cardNum NOT found');
+            if (!expMonth) guiLog('[DBG] #cardExpiryMonth NOT found');
+            if (!expYear) guiLog('[DBG] #cardExpiryYear NOT found');
+            if (!cvv) guiLog('[DBG] #cvdNumber NOT found');
+            if (!config.cardNumber) guiLog('[DBG] config.cardNumber is EMPTY');
+
+            if (ccNum && config.cardNumber && !filled.num) {
+                if (nativeFill(ccNum, config.cardNumber)) {
+                    guiLog('Filled Card Number: ' + config.cardNumber.slice(0,4) + '****');
+                    filled.num = true;
+                }
+            }
+            
+            if (config.cardExpiry && config.cardExpiry.includes('/')) {
+                const [m, y] = config.cardExpiry.split('/').map(s => s.trim());
+                const fullYear = y.length === 2 ? '20' + y : y;
+
+                if (expMonth && !filled.month) {
+                    if (nativeSelectFill(expMonth, m)) {
+                        guiLog('Filled Expiry Month: ' + m);
+                        filled.month = true;
+                    }
+                }
+                if (expYear && !filled.year) {
+                    if (nativeSelectFill(expYear, fullYear)) {
+                        guiLog('Filled Expiry Year: ' + fullYear);
+                        filled.year = true;
+                    }
+                }
+            } else if (!config.cardExpiry) {
+                guiLog('[DBG] config.cardExpiry is EMPTY');
+            }
+
+            if (cvv && config.cardCvv && !filled.cvv) {
+                if (nativeFill(cvv, config.cardCvv)) {
+                    guiLog('Filled CVV');
+                    filled.cvv = true;
+                }
+            } else if (!config.cardCvv) {
+                guiLog('[DBG] config.cardCvv is EMPTY');
+            }
+
+            if (filled.num && filled.month && filled.year && filled.cvv) {
+                guiLog('All card fields filled! Stopping interval.');
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+
+    function handlePaymentIframe() {
+        guiLog('On Secure Payment Iframe page.');
+        
+        let filled = { num: false, month: false, year: false, cvv: false };
+        
+        const interval = setInterval(() => {
+            const latestConfig = GM_getValue('PBandaiBotConfig', null);
+            if (latestConfig) {
+                try { config = Object.assign(config, JSON.parse(latestConfig)); } catch(e){}
+            }
+
+            // --- Running inside the secure-bandai.global-e.com iframe ---
+            const ccNum = document.querySelector('#cardNum, input[name="PaymentData.cardNum"]');
+            const expMonth = document.querySelector('#cardExpiryMonth, select[name*="Month"]');
+            const expYear = document.querySelector('#cardExpiryYear, select[name*="Year"]');
+            const cvv = document.querySelector('#cvdNumber, input[name="PaymentData.cvdNumber"]');
+
+            if (ccNum && config.cardNumber && !filled.num) {
+                if (nativeFill(ccNum, config.cardNumber)) {
+                    guiLog('Filled Card Number: ' + config.cardNumber.slice(0,4) + '****');
+                    filled.num = true;
+                }
+            }
+            
+            if (config.cardExpiry && config.cardExpiry.includes('/')) {
+                const [m, y] = config.cardExpiry.split('/').map(s => s.trim());
+                const fullYear = y.length === 2 ? '20' + y : y;
+
+                if (expMonth && !filled.month) {
+                    if (nativeSelectFill(expMonth, m)) {
+                        guiLog('Filled Expiry Month: ' + m);
+                        filled.month = true;
+                    }
+                }
+                if (expYear && !filled.year) {
+                    if (nativeSelectFill(expYear, fullYear)) {
+                        guiLog('Filled Expiry Year: ' + fullYear);
+                        filled.year = true;
+                    }
+                }
+            }
+
+            if (cvv && config.cardCvv && !filled.cvv) {
+                if (nativeFill(cvv, config.cardCvv)) {
+                    guiLog('Filled CVV');
+                    filled.cvv = true;
+                }
+            }
+
+            if (filled.num && filled.month && filled.year && filled.cvv) {
+                guiLog('All secure card fields filled! Stopping interval.');
+                // Signal to the parent iframe (webservices.global-e.com) that card is done
+                window.parent.postMessage({ type: 'PBBOT_CARD_FILLED' }, '*');
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+
+    // Router
+    setTimeout(() => {
+        guiLog('Script loaded on ' + path);
+        
+        // Deepest iframe: actual credit card form hosted on secure-bandai.global-e.com
+        if (window.location.hostname.includes('secure-bandai.global-e.com')) {
+            guiLog('Running inside Secure Payment Iframe.');
+            handlePaymentIframe();
+            return;
+        }
+
+        // Middle iframe: Global-e checkout flow on webservices.global-e.com
+        if (window.location.hostname.includes('global-e.com')) {
+            guiLog('Running inside Global-e Iframe.');
+            handleOrderDetailsPage();
+            return;
+        }
+
+        if (path.includes('/orderdetails')) {
+            handleOrderDetailsPage();
+        } else {
+            guiLog('Ready to run when on an order details page.');
+        }
+    }, 1500);
+
+})();
