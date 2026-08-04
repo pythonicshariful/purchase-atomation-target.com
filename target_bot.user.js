@@ -29,69 +29,249 @@
     // 1. UI Creation
     function createUI() {
         if (document.getElementById('target-bot-ui')) return;
+
+        GM_addStyle(`
+            #target-bot-ui {
+                position: fixed;
+                right: 18px;
+                bottom: 18px;
+                z-index: 999999;
+                font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+                color: #111827;
+            }
+            #target-bot-ui .tb-card {
+                width: 320px;
+                border-radius: 14px;
+                background: rgba(255, 255, 255, 0.92);
+                border: 1px solid rgba(17, 24, 39, 0.12);
+                box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+                overflow: hidden;
+                backdrop-filter: blur(8px);
+            }
+            #target-bot-ui .tb-header {
+                padding: 12px 14px;
+                background: linear-gradient(135deg, #cc0000 0%, #ff3b30 100%);
+                color: #ffffff;
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 12px;
+            }
+            #target-bot-ui .tb-title {
+                font-size: 14px;
+                font-weight: 800;
+                letter-spacing: 0.2px;
+                line-height: 1.1;
+            }
+            #target-bot-ui .tb-pill {
+                font-size: 11px;
+                font-weight: 700;
+                padding: 4px 8px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.18);
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                white-space: nowrap;
+            }
+            #target-bot-ui .tb-body {
+                padding: 12px 14px 14px;
+            }
+            #target-bot-ui .tb-grid-2 {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            #target-bot-ui .tb-field {
+                margin-bottom: 10px;
+            }
+            #target-bot-ui .tb-label {
+                display: block;
+                font-size: 12px;
+                font-weight: 700;
+                color: #374151;
+                margin-bottom: 6px;
+            }
+            #target-bot-ui .tb-input {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 10px 10px;
+                border-radius: 10px;
+                border: 1px solid rgba(17, 24, 39, 0.16);
+                background: #ffffff;
+                outline: none;
+                font-size: 13px;
+                transition: border-color 140ms ease, box-shadow 140ms ease;
+            }
+            #target-bot-ui .tb-input:focus {
+                border-color: rgba(204, 0, 0, 0.5);
+                box-shadow: 0 0 0 4px rgba(204, 0, 0, 0.12);
+            }
+            #target-bot-ui .tb-status-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin: 10px 0 12px;
+                padding: 10px 10px;
+                border-radius: 12px;
+                background: rgba(17, 24, 39, 0.04);
+                border: 1px solid rgba(17, 24, 39, 0.08);
+            }
+            #target-bot-ui .tb-status-value {
+                font-size: 12px;
+                font-weight: 800;
+                padding: 4px 8px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.8);
+                border: 1px solid rgba(17, 24, 39, 0.08);
+            }
+            #target-bot-ui .tb-log {
+                width: 100%;
+                height: 120px;
+                border-radius: 12px;
+                border: 1px solid rgba(17, 24, 39, 0.12);
+                background: rgba(17, 24, 39, 0.03);
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                font-size: 11px;
+                overflow-y: auto;
+                padding: 10px 10px;
+                box-sizing: border-box;
+                white-space: pre-wrap;
+            }
+            #target-bot-ui .tb-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-top: 12px;
+            }
+            #target-bot-ui .tb-btn {
+                border: none;
+                border-radius: 12px;
+                padding: 10px 12px;
+                font-size: 13px;
+                font-weight: 800;
+                cursor: pointer;
+                transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+            }
+            #target-bot-ui .tb-btn:active {
+                transform: translateY(1px);
+            }
+            #target-bot-ui .tb-btn-primary {
+                background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+                color: #ffffff;
+                box-shadow: 0 10px 18px rgba(34, 197, 94, 0.22);
+            }
+            #target-bot-ui .tb-btn-danger {
+                background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+                color: #ffffff;
+                box-shadow: 0 10px 18px rgba(239, 68, 68, 0.22);
+            }
+            #target-bot-ui .tb-btn:hover {
+                filter: brightness(1.03);
+            }
+        `);
         
         const ui = document.createElement('div');
         ui.id = 'target-bot-ui';
         ui.innerHTML = `
-            <div style="position: fixed; bottom: 20px; right: 20px; background: #fff; border: 2px solid #cc0000; padding: 15px; z-index: 999999; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Arial, sans-serif; width: 270px;">
-                <h3 style="margin: 0 0 10px 0; color: #cc0000; text-align: center; font-size: 16px;">Target Auto Buyer</h3>
-                
-                <div style="margin-bottom: 10px;">
-                    <label style="font-size: 12px; display: block;">Quantity:</label>
-                    <input type="number" id="bot-qty" min="1" max="10" value="${GM_getValue('qty', '1')}" style="width: 100%; box-sizing: border-box; padding: 5px; margin-top: 3px;" />
+            <div class="tb-card">
+                <div class="tb-header">
+                    <div class="tb-title">Target Auto Buyer</div>
+                    <div class="tb-pill">Per-Tab</div>
                 </div>
-                
-                <div style="margin-bottom: 10px;">
-                    <label style="font-size: 12px; display: block;">CVV:</label>
-                    <input type="text" id="bot-cvv" value="${GM_getValue('cvv', '123')}" style="width: 100%; box-sizing: border-box; padding: 5px; margin-top: 3px;" />
-                </div>
-
-                <div style="margin-bottom: 10px; display: flex; gap: 5px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 12px; display: block;">Min Delay (ms):</label>
-                        <input type="number" id="bot-min-delay" value="${GM_getValue('minDelay', '3000')}" style="width: 100%; box-sizing: border-box; padding: 5px; margin-top: 3px;" />
+                <div class="tb-body">
+                    <div class="tb-field">
+                        <label class="tb-label" for="bot-qty">Quantity</label>
+                        <input class="tb-input" type="number" id="bot-qty" min="1" max="10" value="${GM_getValue('qty', '1')}" />
                     </div>
-                    <div style="flex: 1;">
-                        <label style="font-size: 12px; display: block;">Max Delay (ms):</label>
-                        <input type="number" id="bot-max-delay" value="${GM_getValue('maxDelay', '5000')}" style="width: 100%; box-sizing: border-box; padding: 5px; margin-top: 3px;" />
+
+                    <div class="tb-field">
+                        <label class="tb-label" for="bot-max-price">Max Price (0 = no limit)</label>
+                        <input class="tb-input" type="number" id="bot-max-price" min="0" step="0.01" value="${GM_getValue('maxPrice', '0')}" />
                     </div>
-                </div>
 
-                <div style="margin-bottom: 10px;">
-                    <span style="font-size: 12px; font-weight: bold;">Status: </span>
-                    <span id="bot-status" style="font-size: 12px; color: ${GM_getValue('botRunning', false) ? 'green' : 'red'};">${GM_getValue('botRunning', false) ? 'Running' : 'Stopped'}</span>
-                </div>
+                    <div class="tb-field">
+                        <label class="tb-label" for="bot-cvv">CVV</label>
+                        <input class="tb-input" type="text" id="bot-cvv" value="${GM_getValue('cvv', '123')}" />
+                    </div>
 
-                <div style="margin-bottom: 10px;">
-                    <label style="font-size: 12px; display: block; font-weight: bold; margin-bottom: 3px;">Logs:</label>
-                    <div id="bot-log-area" style="width: 100%; height: 120px; border: 1px solid #ccc; background: #f9f9f9; font-family: monospace; font-size: 10px; overflow-y: scroll; padding: 5px; box-sizing: border-box; white-space: pre-wrap;"></div>
-                </div>
+                    <div class="tb-grid-2">
+                        <div class="tb-field">
+                            <label class="tb-label" for="bot-min-delay">Min Delay (ms)</label>
+                            <input class="tb-input" type="number" id="bot-min-delay" value="${GM_getValue('minDelay', '3000')}" />
+                        </div>
+                        <div class="tb-field">
+                            <label class="tb-label" for="bot-max-delay">Max Delay (ms)</label>
+                            <input class="tb-input" type="number" id="bot-max-delay" value="${GM_getValue('maxDelay', '5000')}" />
+                        </div>
+                    </div>
 
-                <div style="display: flex; justify-content: space-between;">
-                    <button id="bot-start" style="background: #008000; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; flex: 1; margin-right: 5px;">Start</button>
-                    <button id="bot-stop" style="background: #cc0000; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; flex: 1; margin-left: 5px;">Stop</button>
+                    <div class="tb-status-row">
+                        <span class="tb-label" style="margin: 0;">Status</span>
+                        <span id="bot-status" class="tb-status-value" style="color: ${getTabRunning() ? 'green' : 'red'};">${getTabRunning() ? 'Running' : 'Stopped'}</span>
+                    </div>
+
+                    <div class="tb-field" style="margin-bottom: 0;">
+                        <label class="tb-label" for="bot-log-area">Logs</label>
+                        <div id="bot-log-area" class="tb-log"></div>
+                    </div>
+
+                    <div class="tb-actions">
+                        <button id="bot-start" class="tb-btn tb-btn-primary">Start</button>
+                        <button id="bot-stop" class="tb-btn tb-btn-danger">Stop</button>
+                    </div>
                 </div>
             </div>
         `;
         document.body.appendChild(ui);
 
-        document.getElementById('bot-start').addEventListener('click', () => {
+        const saveInputs = () => {
             GM_setValue('qty', document.getElementById('bot-qty').value);
+            GM_setValue('maxPrice', document.getElementById('bot-max-price').value);
             GM_setValue('cvv', document.getElementById('bot-cvv').value);
             GM_setValue('minDelay', document.getElementById('bot-min-delay').value);
             GM_setValue('maxDelay', document.getElementById('bot-max-delay').value);
-            GM_setValue('botRunning', true);
-            document.getElementById('bot-status').innerText = 'Running';
-            document.getElementById('bot-status').style.color = 'green';
+        };
+
+        const updateStatusUI = (running) => {
+            const statusEl = document.getElementById('bot-status');
+            if (!statusEl) return;
+            statusEl.innerText = running ? 'Running' : 'Stopped';
+            statusEl.style.color = running ? 'green' : 'red';
+        };
+
+        const bindSave = (id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', saveInputs);
+        };
+
+        bindSave('bot-qty');
+        bindSave('bot-max-price');
+        bindSave('bot-min-delay');
+        bindSave('bot-max-delay');
+
+        const cvvEl = document.getElementById('bot-cvv');
+        if (cvvEl) cvvEl.addEventListener('change', saveInputs);
+
+        document.getElementById('bot-start').addEventListener('click', () => {
+            saveInputs();
+            setTabRunning(true);
+            updateStatusUI(true);
+            window.botPlaceOrderAttempted = false;
             runBot();
         });
 
         document.getElementById('bot-stop').addEventListener('click', () => {
-            GM_setValue('botRunning', false);
-            document.getElementById('bot-status').innerText = 'Stopped';
-            document.getElementById('bot-status').style.color = 'red';
+            setTabRunning(false);
+            updateStatusUI(false);
+            window.botPlaceOrderAttempted = false;
             clearTimeout(window.botTimeout);
+            clearTimeout(window.botPlaceOrderTimeout);
+            if (window.botCheckoutLoop) {
+                clearInterval(window.botCheckoutLoop);
+                window.botCheckoutLoop = null;
+            }
         });
+        updateStatusUI(getTabRunning());
     }
 
     // Node selector helper
@@ -99,9 +279,96 @@
         return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
     }
 
+    function getTabRunning() {
+        try {
+            return window.sessionStorage.getItem('targetBotRunning') === '1';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function setTabRunning(running) {
+        try {
+            if (running) {
+                window.sessionStorage.setItem('targetBotRunning', '1');
+            } else {
+                window.sessionStorage.removeItem('targetBotRunning');
+            }
+        } catch (e) {}
+    }
+
+    function getWaitTimeMs() {
+        const minDelay = parseInt(GM_getValue('minDelay', '3000'), 10);
+        const maxDelay = parseInt(GM_getValue('maxDelay', '5000'), 10);
+
+        const safeMin = Number.isFinite(minDelay) ? Math.max(0, minDelay) : 3000;
+        const safeMax = Number.isFinite(maxDelay) ? Math.max(safeMin, maxDelay) : Math.max(safeMin, 5000);
+
+        return Math.floor(Math.random() * (safeMax - safeMin + 1)) + safeMin;
+    }
+
+    function scheduleRefresh(reason) {
+        const waitTime = getWaitTimeMs();
+        console.log(`${reason} Refreshing in ${(waitTime / 1000).toFixed(1)} seconds...`);
+        clearTimeout(window.botTimeout);
+        window.botTimeout = setTimeout(() => {
+            if (getTabRunning()) {
+                window.location.reload();
+            }
+        }, waitTime);
+    }
+
+    function isOutOfStock() {
+        const oosEl = getElementByXpath("//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'out of stock')]");
+        if (oosEl && isElementVisible(oosEl)) return true;
+
+        const boldSpans = document.querySelectorAll('span.h-text-bold');
+        for (const el of boldSpans) {
+            const t = (el.textContent || '').trim().toLowerCase();
+            if (t === 'out of stock' || t.includes('out of stock')) return true;
+        }
+        const ariaEls = document.querySelectorAll('[aria-label]');
+        for (const el of ariaEls) {
+            const label = (el.getAttribute('aria-label') || '').trim().toLowerCase();
+            if (label.includes('out of stock')) return true;
+        }
+        const bodyText = (document.body && document.body.innerText) ? document.body.innerText.toLowerCase() : '';
+        if (bodyText.includes('out of stock')) return true;
+        return false;
+    }
+
+    function isElementVisible(el) {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }
+
+    function isDisabled(el) {
+        if (!el) return true;
+        if (el.disabled) return true;
+        const ariaDisabled = (el.getAttribute('aria-disabled') || '').toLowerCase();
+        return ariaDisabled === 'true';
+    }
+
+    function getCurrentPrice() {
+        const priceEl = document.querySelector('[data-test="product-price"]') ||
+                        document.querySelector('span.styles_currentPriceFontSize__Xps20');
+        if (!priceEl) return null;
+        const raw = (priceEl.textContent || '').trim();
+        const cleaned = raw.replace(/[^0-9.]/g, '');
+        const price = parseFloat(cleaned);
+        return Number.isFinite(price) ? price : null;
+    }
+
+    function getMaxPrice() {
+        const raw = (GM_getValue('maxPrice', '0') || '0').toString().trim();
+        const maxPrice = parseFloat(raw);
+        return Number.isFinite(maxPrice) ? maxPrice : 0;
+    }
+
     // State machine logic
     function runBot() {
-        if (!GM_getValue('botRunning', false)) return;
+        if (!getTabRunning()) return;
 
         const currentUrl = window.location.href;
         
@@ -116,6 +383,20 @@
 
     function handleProductPage() {
         console.log("Target Bot: Handling product page...");
+
+        if (isOutOfStock()) {
+            console.log("Target Bot: Out of stock detected.");
+            scheduleRefresh("Target Bot: Product not available.");
+            return;
+        }
+
+        const maxPrice = getMaxPrice();
+        const currentPrice = getCurrentPrice();
+        if (maxPrice > 0 && currentPrice !== null && currentPrice > maxPrice) {
+            console.log(`Target Bot: Price ${currentPrice} is above max ${maxPrice}.`);
+            scheduleRefresh("Target Bot: Price limit not satisfied.");
+            return;
+        }
         
         // 1. Check and set Quantity if present
         const targetQty = GM_getValue('qty', '1');
@@ -147,13 +428,13 @@
                              getElementByXpath("//button[contains(text(),'Add to cart')]") ||
                              getElementByXpath("//button[text()='Preorder']");
         
-        if (addToCartBtn) {
+        if (addToCartBtn && isElementVisible(addToCartBtn) && !isDisabled(addToCartBtn)) {
             console.log("Target Bot: Found Add to Cart/Preorder button! Clicking...");
             addToCartBtn.click();
             
             // Wait for it to be added to cart, then navigate to checkout
             let checkCartInterval = setInterval(() => {
-                if (!GM_getValue('botRunning', false)) {
+                if (!getTabRunning()) {
                     clearInterval(checkCartInterval);
                     return;
                 }
@@ -167,25 +448,46 @@
                     window.location.href = "https://www.target.com/checkout";
                 }
             }, 1000);
+
+            setTimeout(() => {
+                if (!getTabRunning()) return;
+                if (!checkCartInterval) return;
+                clearInterval(checkCartInterval);
+                checkCartInterval = null;
+                scheduleRefresh("Target Bot: Add to cart did not succeed.");
+            }, 15000);
         } else {
-            const minDelay = parseInt(GM_getValue('minDelay', '3000'), 10);
-            const maxDelay = parseInt(GM_getValue('maxDelay', '5000'), 10);
-            const waitTime = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-            console.log(`Target Bot: Add to cart not found. Refreshing in ${(waitTime / 1000).toFixed(1)} seconds...`);
-            window.botTimeout = setTimeout(() => {
-                if (GM_getValue('botRunning', false)) {
-                    window.location.reload();
-                }
-            }, waitTime);
+            scheduleRefresh("Target Bot: Add to cart not available.");
         }
     }
 
     function handleCheckoutPage() {
         console.log("Target Bot: Handling checkout page...");
 
-        let checkoutLoop = setInterval(() => {
-            if (!GM_getValue('botRunning', false)) {
-                clearInterval(checkoutLoop);
+        if (window.botCheckoutLoop) return;
+
+        window.botCheckoutLoop = setInterval(() => {
+            if (!getTabRunning()) {
+                clearInterval(window.botCheckoutLoop);
+                window.botCheckoutLoop = null;
+                clearTimeout(window.botPlaceOrderTimeout);
+                window.botPlaceOrderTimeout = null;
+                return;
+            }
+
+            const currentUrl = window.location.href;
+            if (!currentUrl.includes('/checkout') && !currentUrl.includes('/co-')) {
+                console.log("Target Bot: Checkout complete (URL changed). Stopping.");
+                setTabRunning(false);
+                const statusEl = document.getElementById('bot-status');
+                if (statusEl) {
+                    statusEl.innerText = 'Finished';
+                    statusEl.style.color = 'red';
+                }
+                clearInterval(window.botCheckoutLoop);
+                window.botCheckoutLoop = null;
+                clearTimeout(window.botPlaceOrderTimeout);
+                window.botPlaceOrderTimeout = null;
                 return;
             }
 
@@ -249,13 +551,6 @@
                     if (confirmBtn) {
                         confirmBtn.click();
                         console.log("Target Bot: Clicked Confirm CVV");
-                        
-                        setTimeout(() => {
-                            GM_setValue('botRunning', false);
-                            const statusEl = document.getElementById('bot-status');
-                            if(statusEl) statusEl.innerText = 'Finished';
-                            clearInterval(checkoutLoop);
-                        }, 3000);
                     }
                 }, 1000);
                 return;
@@ -263,21 +558,28 @@
 
             // 5. Place order button
             const placeOrderBtn = document.querySelector('button[data-test="placeOrderButton"]');
-            if (placeOrderBtn && !placeOrderBtn.disabled && !window.botPlaceOrderClicked) {
-                console.log("Target Bot: Clicking Place Order!");
-                placeOrderBtn.click();
-                window.botPlaceOrderClicked = true;
-                
-                // Keep the loop running because the CVV panel might slide open!
-                // We will auto-stop after 15 seconds if nothing else happens.
-                setTimeout(() => {
-                    if (GM_getValue('botRunning', false)) {
-                        GM_setValue('botRunning', false);
-                        const statusEl = document.getElementById('bot-status');
-                        if (statusEl) statusEl.innerText = 'Finished';
-                        clearInterval(checkoutLoop);
+            if (placeOrderBtn && !isDisabled(placeOrderBtn) && !window.botPlaceOrderTimeout) {
+                if (!window.botPlaceOrderAttempted) {
+                    window.botPlaceOrderAttempted = true;
+                    placeOrderBtn.click();
+                    console.log("Target Bot: First place order attempt. Clicked immediately.");
+                    return;
+                }
+
+                const delay = getWaitTimeMs();
+                console.log(`Target Bot: Place Order available. Clicking in ${(delay / 1000).toFixed(1)} seconds...`);
+                window.botPlaceOrderTimeout = setTimeout(() => {
+                    window.botPlaceOrderTimeout = null;
+                    if (!getTabRunning()) return;
+                    const stillOnCheckout = window.location.href.includes('/checkout') || window.location.href.includes('/co-');
+                    if (!stillOnCheckout) return;
+
+                    const btn = document.querySelector('button[data-test="placeOrderButton"]');
+                    if (btn && !isDisabled(btn) && isElementVisible(btn)) {
+                        btn.click();
+                        console.log("Target Bot: Clicked Place Order");
                     }
-                }, 15000);
+                }, delay);
             }
 
         }, 2000);
@@ -287,7 +589,7 @@
     window.addEventListener('load', () => {
         setTimeout(() => {
             createUI();
-            if (GM_getValue('botRunning', false)) {
+            if (getTabRunning()) {
                 runBot();
             }
         }, 1000); // slight delay to let Target's react elements render
