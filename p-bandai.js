@@ -15,6 +15,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-end
+// @all-frames   true
 // ==/UserScript==
 
 (function() {
@@ -40,7 +41,6 @@
     if (savedConfig) {
         try {
             config = Object.assign(config, JSON.parse(savedConfig));
-            config.active = true; // Always active
             if (sessionStorage.getItem('pbBotAutoRestart') === 'true') {
                 sessionStorage.removeItem('pbBotAutoRestart'); // Consume it
             }
@@ -99,96 +99,124 @@
     function initGUI() {
         if (document.getElementById('pbSimpleGui')) return;
 
+        function updateStartStopButton() {
+            const btn = document.getElementById('pbStartStopBtn');
+            const statusEl = document.getElementById('pbStatus');
+            if (btn) {
+                btn.textContent = config.active ? 'STOP BOT' : 'START BOT';
+                btn.classList.toggle('active', config.active);
+            }
+            if (statusEl) {
+                statusEl.innerText = config.active ? 'Bot running...' : 'Bot stopped.';
+            }
+        }
+
         const guiHTML = `
             <style>
                 #pbSimpleGui {
                     position: fixed !important;
-                    bottom: 20px !important;
-                    left: 20px !important;
-                    width: 340px !important;
-                    background: #fff !important;
-                    border: 2px solid #333 !important;
-                    border-radius: 8px !important;
+                    bottom: 18px !important;
+                    left: 18px !important;
+                    width: 330px !important;
+                    background: rgba(255,255,255,0.98) !important;
+                    border: 1px solid rgba(0,0,0,0.15) !important;
+                    border-radius: 14px !important;
                     z-index: 2147483647 !important;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-                    font-family: Arial, sans-serif !important;
+                    box-shadow: 0 18px 50px rgba(0,0,0,0.18) !important;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
                     font-size: 13px !important;
                     display: flex !important;
                     flex-direction: column !important;
-                    color: #000 !important;
+                    color: #111 !important;
                     overflow: hidden !important;
                     pointer-events: auto !important;
                 }
                 #pbSimpleGuiHeader {
-                    background: #e60012 !important;
+                    background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%) !important;
                     color: #fff !important;
-                    padding: 10px !important;
-                    font-weight: bold !important;
-                    text-align: center !important;
+                    padding: 12px 14px !important;
+                    font-weight: 700 !important;
+                    text-align: left !important;
                     cursor: pointer !important;
                     display: flex !important;
                     justify-content: space-between !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                }
+                #pbSimpleGuiHeader span:first-child {
+                    font-size: 14px !important;
                 }
                 #pbSimpleGuiContent {
-                    padding: 15px !important;
+                    padding: 14px !important;
                     display: flex !important;
                     flex-direction: column !important;
-                    gap: 12px !important;
-                    background: #fff !important;
-                    max-height: 500px !important;
+                    gap: 14px !important;
+                    background: transparent !important;
+                    max-height: 520px !important;
                     overflow-y: auto !important;
                 }
                 .pb-row {
                     display: flex !important;
-                    justify-content: space-between !important;
                     align-items: center !important;
+                    gap: 10px !important;
+                    justify-content: space-between !important;
+                }
+                .pb-row label {
+                    flex: 1 !important;
+                    margin-right: 8px !important;
+                    color: #333 !important;
                 }
                 .pb-row input {
-                    width: 50px !important;
-                    padding: 4px !important;
-                    border: 1px solid #ccc !important;
-                    border-radius: 4px !important;
+                    width: 72px !important;
+                    padding: 8px !important;
+                    border: 1px solid #d1d5db !important;
+                    border-radius: 8px !important;
                     text-align: center !important;
-                    color: #000 !important;
+                    color: #111 !important;
+                    background: #fafafa !important;
                 }
                 .pb-row input.wide {
-                    width: 130px !important;
+                    width: 145px !important;
                 }
                 .pb-btn {
-                    background: #d32f2f !important;
-                    color: white !important;
+                    background: #1f2937 !important;
+                    color: #fff !important;
                     border: none !important;
-                    padding: 10px !important;
+                    padding: 10px 14px !important;
                     cursor: pointer !important;
-                    border-radius: 4px !important;
-                    font-weight: bold !important;
+                    border-radius: 10px !important;
+                    font-weight: 700 !important;
                     text-transform: uppercase !important;
+                    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease !important;
+                    box-shadow: 0 10px 20px rgba(31,41,55,0.12) !important;
                 }
                 .pb-btn.active {
-                    background: #2e7d32 !important;
+                    background: #047857 !important;
                 }
                 .pb-btn:hover {
-                    opacity: 0.9 !important;
+                    opacity: 0.92 !important;
+                    transform: translateY(-1px) !important;
                 }
                 #pbStatus {
                     font-size: 12px !important;
-                    color: #666 !important;
+                    color: #4b5563 !important;
                     text-align: center !important;
-                    margin-top: 5px !important;
-                    min-height: 15px !important;
-                    font-weight: bold !important;
+                    margin-top: 0 !important;
+                    min-height: 18px !important;
+                    font-weight: 600 !important;
                 }
                 #pbDebugConsole {
                     height: 120px !important;
                     overflow-y: auto !important;
-                    background: #1e1e1e !important;
-                    color: #00ff00 !important;
-                    font-family: monospace !important;
+                    background: #111827 !important;
+                    color: #d1d5db !important;
+                    font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace !important;
                     font-size: 11px !important;
-                    padding: 5px !important;
-                    border: 1px solid #000 !important;
+                    padding: 10px !important;
+                    border: 1px solid rgba(148,163,184,0.35) !important;
+                    border-radius: 12px !important;
                     word-wrap: break-word !important;
-                    line-height: 1.2 !important;
+                    line-height: 1.4 !important;
                     text-align: left !important;
                 }
             </style>
@@ -223,6 +251,10 @@
                 <div class="pb-row">
                     <label>CVV:</label>
                     <input type="password" id="pbCvv" class="wide" value="${config.cardCvv}">
+                </div>
+
+                <div class="pb-row" style="justify-content:center;">
+                    <button id="pbStartStopBtn" class="pb-btn active">STOP BOT</button>
                 </div>
 
                 <div id="pbStatus">Waiting...</div>
@@ -278,6 +310,18 @@
             }
         });
 
+        const startStopBtn = document.getElementById('pbStartStopBtn');
+        if (startStopBtn) {
+            startStopBtn.addEventListener('click', () => {
+                config.active = !config.active;
+                saveConfig();
+                updateStartStopButton();
+                logMsg(config.active ? 'Bot started.' : 'Bot stopped.');
+            });
+        }
+
+        updateStartStopButton();
+
         const toggleGui = document.getElementById('pbToggleGui');
         if (toggleGui) {
             toggleGui.addEventListener('click', (e) => {
@@ -290,7 +334,7 @@
             });
         }
 
-        logMsg('Bot initialized & ACTIVE.');
+        logMsg(config.active ? 'Bot initialized and ACTIVE.' : 'Bot initialized and STOPPED.');
     }
 
     if (window === window.top) {
@@ -330,22 +374,45 @@
     function nativeClick(el) {
         if (!el) return;
         const rect = el.getBoundingClientRect();
-        const x = rect.left + rect.width / 2;
-        const y = rect.top + rect.height / 2;
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const startX = rect.left + rect.width * 0.2;
+        const startY = rect.top + rect.height * 0.2;
+        const endX = centerX;
+        const endY = centerY;
 
-        const events = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
-        events.forEach(eventType => {
-            try {
-                el.dispatchEvent(new MouseEvent(eventType, {
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: x,
-                    clientY: y,
-                    screenX: x,
-                    screenY: y
-                }));
-            } catch (e) {}
-        });
+        const sendPointer = (type, x, y, delay) => {
+            setTimeout(() => {
+                try {
+                    el.dispatchEvent(new MouseEvent(type, {
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: x,
+                        clientY: y,
+                        screenX: x,
+                        screenY: y
+                    }));
+                } catch (e) {}
+            }, delay);
+        };
+
+        sendPointer('mousemove', startX, startY, 0);
+        sendPointer('mouseover', startX, startY, 20);
+        sendPointer('mousemove', centerX - 4, centerY - 4, 40);
+        sendPointer('mousedown', endX, endY, 80);
+        sendPointer('mouseup', endX, endY, 140);
+        sendPointer('click', endX, endY, 180);
+    }
+
+    function dispatchMouseEvents(el, x, y) {
+        if (!el) return;
+        const eventOptions = { bubbles: true, cancelable: true, clientX: x, clientY: y };
+        try { el.dispatchEvent(new PointerEvent('pointerover', eventOptions)); } catch (e) {}
+        try { el.dispatchEvent(new PointerEvent('pointerenter', eventOptions)); } catch (e) {}
+        try { el.dispatchEvent(new PointerEvent('pointerdown', eventOptions)); } catch (e) {}
+        try { el.dispatchEvent(new MouseEvent('mousedown', eventOptions)); } catch (e) {}
+        try { el.dispatchEvent(new MouseEvent('mouseup', eventOptions)); } catch (e) {}
+        try { el.dispatchEvent(new MouseEvent('click', eventOptions)); } catch (e) {}
     }
 
     function nativeFill(el, value) {
@@ -376,6 +443,185 @@
         return true;
     }
 
+    function getFrameDocument(frame) {
+        if (!frame) return null;
+        try {
+            return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document) || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function findElementInFrames(rootDoc, selectors) {
+        if (!rootDoc || typeof rootDoc.querySelector !== 'function') return null;
+
+        const selectorList = Array.isArray(selectors) ? selectors : [selectors];
+        for (let s = 0; s < selectorList.length; s++) {
+            const directEl = rootDoc.querySelector(selectorList[s]);
+            if (directEl) return directEl;
+        }
+
+        const iframes = rootDoc.querySelectorAll('iframe');
+        for (let i = 0; i < iframes.length; i++) {
+            const frameDoc = getFrameDocument(iframes[i]);
+            const nestedEl = findElementInFrames(frameDoc, selectorList);
+            if (nestedEl) return nestedEl;
+        }
+        return null;
+    }
+
+    function attemptCheckoutSubmission(rootDoc = document) {
+        const tncSelectors = [
+            '#CheckoutData_TnCConsent0',
+            'input[name="CheckoutData.TnCConsent0"]',
+            'input[id="CheckoutData_TnCConsent0"]',
+            'input[data-exformname="CheckoutData.TnCConsent0"]',
+            'input[type="checkbox"]'
+        ];
+        const paySelectors = [
+            '#btnPay',
+            'button#btnPay',
+            'button[id*="btnPay"]',
+            'button[data-text="Pay and place order"]',
+            'button.pay-button-pm-id-1',
+            'button.checkout-button-1',
+            'button[class*="pay-button"]',
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'button[name*="pay"]',
+            'button[class*="submit"]'
+        ];
+
+        const findLabelForInput = (input) => {
+            if (!input) return null;
+            const doc = input.ownerDocument || document;
+            if (input.id) {
+                const label = doc.querySelector(`label[for="${input.id}"]`);
+                if (label) return label;
+            }
+            if (input.closest) {
+                const parentLabel = input.closest('label');
+                if (parentLabel) return parentLabel;
+            }
+            const wrapper = input.parentElement;
+            if (wrapper) {
+                const nestedLabel = wrapper.querySelector('label');
+                if (nestedLabel) return nestedLabel;
+            }
+            return null;
+        };
+
+        const setCheckboxState = (checkbox) => {
+            if (!checkbox) return;
+            checkbox.checked = true;
+            checkbox.setAttribute('checked', 'checked');
+            checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        const getPageHref = () => {
+            if (rootDoc && rootDoc.defaultView && rootDoc.defaultView.location) {
+                return rootDoc.defaultView.location.href;
+            }
+            return window.location.href;
+        };
+
+        const getRandomDelay = () => Math.floor(Math.random() * 1200) + 800;
+
+        const clickPayButton = (btn) => {
+            try {
+                btn.focus();
+                btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                nativeClick(btn);
+                setTimeout(() => {
+                    try {
+                        const rect = btn.getBoundingClientRect();
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+                        dispatchMouseEvents(btn, centerX, centerY);
+                        btn.dispatchEvent(new Event('mousedown', { bubbles: true }));
+                        btn.dispatchEvent(new Event('mouseup', { bubbles: true }));
+                        btn.click();
+                    } catch (e) {}
+                }, 260);
+            } catch (e) {}
+        };
+
+        let attempts = 0;
+        let firstPayClicked = false;
+        let initialHref = getPageHref();
+        let nextRetryTime = null;
+
+        const timer = setInterval(() => {
+            attempts += 1;
+            if (firstPayClicked && getPageHref() !== initialHref) {
+                logMsg('URL changed after payment click, stopping retries.');
+                clearInterval(timer);
+                return;
+            }
+
+            const tnc = findElementInFrames(rootDoc, tncSelectors);
+            if (tnc) {
+                const label = findLabelForInput(tnc);
+                if (!tnc.checked) {
+                    try {
+                        tnc.focus();
+                        tnc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if (label) {
+                            nativeClick(label);
+                            setTimeout(() => {
+                                try {
+                                    label.click();
+                                    const rect = label.getBoundingClientRect();
+                                    dispatchMouseEvents(label, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                                } catch (e) {}
+                            }, 120);
+                        } else {
+                            nativeClick(tnc);
+                        }
+                        setTimeout(() => {
+                            try {
+                                setCheckboxState(tnc);
+                                const rect = tnc.getBoundingClientRect();
+                                dispatchMouseEvents(tnc, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                                tnc.click();
+                            } catch (e) {}
+                        }, 260);
+                    } catch (e) {}
+                    logMsg('Clicked T&C Checkbox');
+                } else {
+                    logMsg('T&C Checkbox already checked');
+                }
+            }
+
+            const payBtn = findElementInFrames(rootDoc, paySelectors);
+            if (payBtn && !payBtn.disabled) {
+                if (!firstPayClicked) {
+                    logMsg('First Pay click: immediate.');
+                    clickPayButton(payBtn);
+                    firstPayClicked = true;
+                    nextRetryTime = Date.now() + getRandomDelay();
+                } else if (nextRetryTime && Date.now() >= nextRetryTime) {
+                    if (getPageHref() === initialHref) {
+                        logMsg('Retrying Pay click after delay.');
+                        clickPayButton(payBtn);
+                        nextRetryTime = Date.now() + getRandomDelay();
+                    } else {
+                        logMsg('URL changed after payment click, stopping retries.');
+                        clearInterval(timer);
+                        return;
+                    }
+                }
+            }
+
+            if (attempts >= 40) {
+                logMsg('Pay button still not available after multiple attempts.');
+                clearInterval(timer);
+            }
+        }, 1000);
+
+        return true;
+    }
 
     // -------------------------------------------------------------------------
     // PAGE LOGIC
@@ -509,23 +755,13 @@
                 if (event.data && event.data.type === 'PBBOT_CARD_FILLED') {
                     logMsg('Received card filled signal. Proceeding to submit...');
                     setTimeout(() => {
-                        const tnc = document.querySelector('#CheckoutData_TnCConsent0, input[name="CheckoutData.TnCConsent0"]');
-                        if (tnc && !tnc.checked) {
-                            tnc.click();
-                            logMsg('Clicked T&C Checkbox');
-                        }
-
-                        setTimeout(() => {
-                            const payBtn = document.querySelector('#btnPay');
-                            if (payBtn) {
-                                payBtn.click();
-                                logMsg('Clicked Pay and place order Button');
-                            }
-                        }, 800);
+                        attemptCheckoutSubmission(document);
                     }, 1000);
                 }
             });
         }
+
+        let finalStepDone = false;
 
         const interval = setInterval(() => {
             const latestConfig = GM_getValue('PBandaiFullConfig', null);
@@ -582,9 +818,13 @@
                 }
             }
 
-            if (filled.num && filled.month && filled.year && filled.cvv) {
-                logMsg('All card fields filled! Stopping interval.');
+            if (filled.num && filled.month && filled.year && filled.cvv && !finalStepDone) {
+                finalStepDone = true;
+                logMsg('All card fields filled! Proceeding to final checkout step.');
                 clearInterval(interval);
+                setTimeout(() => {
+                    attemptCheckoutSubmission(document);
+                }, 1200);
             }
         }, 1000);
     }
@@ -592,6 +832,7 @@
     function handlePaymentIframe() {
         logMsg('On Secure Payment Iframe page.');
         let filled = { num: false, month: false, year: false, cvv: false };
+        let finalStepTriggered = false;
 
         const interval = setInterval(() => {
             const latestConfig = GM_getValue('PBandaiFullConfig', null);
@@ -636,9 +877,13 @@
                 }
             }
 
-            if (filled.num && filled.month && filled.year && filled.cvv) {
-                logMsg('All secure card fields filled! Stopping interval.');
+            if (filled.num && filled.cvv && !finalStepTriggered) {
+                finalStepTriggered = true;
+                logMsg('Card Number and CVV are present. Triggering final checkout step.');
                 window.parent.postMessage({ type: 'PBBOT_CARD_FILLED' }, '*');
+                setTimeout(() => {
+                    attemptCheckoutSubmission(document);
+                }, 1200);
                 clearInterval(interval);
             }
         }, 1000);
